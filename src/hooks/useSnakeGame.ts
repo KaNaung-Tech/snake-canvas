@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 
-export type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
+export type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' | null;
 
 interface Position {
   x: number;
@@ -15,6 +15,7 @@ interface GameState {
   highScore: number;
   isGameOver: boolean;
   isPaused: boolean;
+  isWaitingForInput: boolean;
 }
 
 const GRID_SIZE = 20;
@@ -35,37 +36,44 @@ const getRandomPosition = (snake: Position[]): Position => {
   return position;
 };
 
-export const useSnakeGame = (gameSpeed: number = 150) => {
+export const useSnakeGame = (gameSpeed: number = 250) => {
   const [gameState, setGameState] = useState<GameState>(() => ({
     snake: INITIAL_SNAKE,
     food: getRandomPosition(INITIAL_SNAKE),
-    direction: 'RIGHT',
+    direction: null,
     score: 0,
     highScore: parseInt(localStorage.getItem('snakeHighScore') || '0'),
     isGameOver: false,
     isPaused: true,
+    isWaitingForInput: true,
   }));
 
   const directionRef = useRef<Direction>(gameState.direction);
   const gameLoopRef = useRef<NodeJS.Timeout | null>(null);
 
-  const setDirection = useCallback((newDirection: Direction) => {
-    const opposites: Record<Direction, Direction> = {
+  const setDirection = useCallback((newDirection: Exclude<Direction, null>) => {
+    const opposites: Record<Exclude<Direction, null>, Exclude<Direction, null>> = {
       UP: 'DOWN',
       DOWN: 'UP',
       LEFT: 'RIGHT',
       RIGHT: 'LEFT',
     };
 
-    if (opposites[newDirection] !== directionRef.current) {
+    // Allow first direction input even if waiting
+    if (directionRef.current === null || opposites[newDirection] !== directionRef.current) {
       directionRef.current = newDirection;
-      setGameState(prev => ({ ...prev, direction: newDirection }));
+      setGameState(prev => ({ 
+        ...prev, 
+        direction: newDirection,
+        isWaitingForInput: false,
+      }));
     }
   }, []);
 
   const moveSnake = useCallback(() => {
     setGameState(prev => {
-      if (prev.isGameOver || prev.isPaused) return prev;
+      // Don't move if paused, game over, or waiting for first input
+      if (prev.isGameOver || prev.isPaused || prev.isWaitingForInput || !directionRef.current) return prev;
 
       const head = prev.snake[0];
       const direction = directionRef.current;
@@ -131,15 +139,16 @@ export const useSnakeGame = (gameSpeed: number = 150) => {
   }, []);
 
   const resetGame = useCallback(() => {
-    directionRef.current = 'RIGHT';
+    directionRef.current = null;
     setGameState(prev => ({
       snake: INITIAL_SNAKE,
       food: getRandomPosition(INITIAL_SNAKE),
-      direction: 'RIGHT',
+      direction: null,
       score: 0,
       highScore: prev.highScore,
       isGameOver: false,
       isPaused: true,
+      isWaitingForInput: true,
     }));
   }, []);
 
@@ -157,7 +166,7 @@ export const useSnakeGame = (gameSpeed: number = 150) => {
 
   return {
     ...gameState,
-    setDirection,
+    setDirection: setDirection as (dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => void,
     startGame,
     pauseGame,
     resetGame,
