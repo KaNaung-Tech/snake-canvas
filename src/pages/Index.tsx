@@ -16,8 +16,10 @@ const Index = () => {
     isGameOver,
     isPaused,
     isWaitingForInput,
+    isDrawing,
     gridSize,
     setDirection,
+    setDrawing,
     startGame,
     pauseGame,
     resetGame,
@@ -118,6 +120,21 @@ const Index = () => {
               onRestart={resetGame}
             />
 
+            {/* Drawing Overlay - Snake paused while you draw */}
+            {!isPaused && !isGameOver && !isWaitingForInput && isDrawing && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-lg z-30 pointer-events-none">
+                <div className="absolute inset-0 bg-secondary/10 animate-pulse" />
+                <div className="text-center p-4 bg-background/80 rounded-xl backdrop-blur-sm border border-secondary/50">
+                  <p className="text-xl font-display font-bold text-secondary">
+                    DRAWING...
+                  </p>
+                  <p className="text-sm text-muted-foreground font-body">
+                    Release to move
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Waiting for Input Overlay */}
             {!isPaused && !isGameOver && isWaitingForInput && (
               <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm rounded-lg z-30">
@@ -154,6 +171,7 @@ const Index = () => {
               <CameraFeed
                 enabled={!isPaused && !isGameOver}
                 onDirectionChange={setDirection}
+                onDrawingChange={setDrawing}
               />
             </div>
 

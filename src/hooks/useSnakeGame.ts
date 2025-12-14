@@ -16,6 +16,7 @@ interface GameState {
   isGameOver: boolean;
   isPaused: boolean;
   isWaitingForInput: boolean;
+  isDrawing: boolean;
 }
 
 const GRID_SIZE = 20;
@@ -46,10 +47,15 @@ export const useSnakeGame = (gameSpeed: number = 250) => {
     isGameOver: false,
     isPaused: true,
     isWaitingForInput: true,
+    isDrawing: false,
   }));
 
   const directionRef = useRef<Direction>(gameState.direction);
   const gameLoopRef = useRef<NodeJS.Timeout | null>(null);
+
+  const setDrawing = useCallback((drawing: boolean) => {
+    setGameState(prev => ({ ...prev, isDrawing: drawing }));
+  }, []);
 
   const setDirection = useCallback((newDirection: Exclude<Direction, null>) => {
     const opposites: Record<Exclude<Direction, null>, Exclude<Direction, null>> = {
@@ -72,8 +78,10 @@ export const useSnakeGame = (gameSpeed: number = 250) => {
 
   const moveSnake = useCallback(() => {
     setGameState(prev => {
-      // Don't move if paused, game over, or waiting for first input
-      if (prev.isGameOver || prev.isPaused || prev.isWaitingForInput || !directionRef.current) return prev;
+      // Don't move if paused, game over, waiting for input, or currently drawing
+      if (prev.isGameOver || prev.isPaused || prev.isWaitingForInput || prev.isDrawing || !directionRef.current) {
+        return prev;
+      }
 
       const head = prev.snake[0];
       const direction = directionRef.current;
@@ -149,6 +157,7 @@ export const useSnakeGame = (gameSpeed: number = 250) => {
       isGameOver: false,
       isPaused: true,
       isWaitingForInput: true,
+      isDrawing: false,
     }));
   }, []);
 
@@ -167,6 +176,7 @@ export const useSnakeGame = (gameSpeed: number = 250) => {
   return {
     ...gameState,
     setDirection: setDirection as (dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => void,
+    setDrawing,
     startGame,
     pauseGame,
     resetGame,
