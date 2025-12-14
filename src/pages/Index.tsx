@@ -15,12 +15,13 @@ const Index = () => {
     highScore,
     isGameOver,
     isPaused,
+    isWaitingForInput,
     gridSize,
     setDirection,
     startGame,
     pauseGame,
     resetGame,
-  } = useSnakeGame(120);
+  } = useSnakeGame(200);
 
   const [previousHighScore] = useState(highScore);
   const isNewHighScore = isGameOver && score === highScore && score > previousHighScore;
@@ -116,6 +117,20 @@ const Index = () => {
               isNewHighScore={isNewHighScore}
               onRestart={resetGame}
             />
+
+            {/* Waiting for Input Overlay */}
+            {!isPaused && !isGameOver && isWaitingForInput && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm rounded-lg z-30">
+                <div className="text-center p-6">
+                  <p className="text-3xl font-display font-bold text-accent text-glow-accent animate-pulse-glow mb-3">
+                    DRAW A DIRECTION
+                  </p>
+                  <p className="text-muted-foreground font-body">
+                    Pinch your fingers and draw to start moving
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Pause Overlay */}
             {isPaused && !isGameOver && (
