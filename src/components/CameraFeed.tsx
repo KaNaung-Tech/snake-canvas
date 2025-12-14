@@ -11,13 +11,15 @@ interface Point {
 
 interface CameraFeedProps {
   enabled: boolean;
-  onDirectionChange: (direction: Direction) => void;
+  onDirectionChange: (direction: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => void;
+  onDrawingChange: (isDrawing: boolean) => void;
   className?: string;
 }
 
 export const CameraFeed: React.FC<CameraFeedProps> = ({
   enabled,
   onDirectionChange,
+  onDrawingChange,
   className,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -56,13 +58,18 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
 
   // Handle pinch gesture and drawing
   useEffect(() => {
-    if (!drawingCanvasRef.current || !pinchPosition) return;
+    if (!drawingCanvasRef.current) return;
 
     const canvas = drawingCanvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    if (isPinching) {
+    if (isPinching && pinchPosition) {
+      // Notify that we're drawing (snake should pause)
+      if (!wasPinchingRef.current) {
+        onDrawingChange(true);
+      }
+      
       // Add point to drawing
       setDrawingPoints(prev => [...prev, pinchPosition]);
       
@@ -84,20 +91,23 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
       
       wasPinchingRef.current = true;
     } else if (wasPinchingRef.current) {
-      // Pinch ended - calculate direction
+      // Pinch ended - calculate direction and resume
       const direction = calculateDirection(drawingPoints);
       
-      if (direction && direction !== lastDirection) {
+      if (direction) {
         onDirectionChange(direction);
         setLastDirection(direction);
       }
+      
+      // Stop drawing (snake can move again)
+      onDrawingChange(false);
       
       // Clear drawing
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       setDrawingPoints([]);
       wasPinchingRef.current = false;
     }
-  }, [isPinching, pinchPosition, drawingPoints, calculateDirection, onDirectionChange, lastDirection]);
+  }, [isPinching, pinchPosition, drawingPoints, calculateDirection, onDirectionChange, onDrawingChange]);
 
   // Setup canvas sizes
   useEffect(() => {
