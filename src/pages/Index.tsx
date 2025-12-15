@@ -103,8 +103,8 @@ const Index = () => {
 
         {/* Main Game Area */}
         <div className="flex-1 flex flex-col lg:flex-row gap-6 items-center justify-center">
-          {/* Game Board */}
-          <div className="relative w-full max-w-lg aspect-square">
+          {/* Game Board - Larger size */}
+          <div className="relative w-full max-w-2xl aspect-square">
             <GameBoard
               snake={snake}
               food={food}
