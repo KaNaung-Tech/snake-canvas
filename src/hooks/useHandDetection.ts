@@ -135,14 +135,36 @@ export const useHandDetection = (
   useEffect(() => {
     if (!enabled || !videoRef.current || !canvasRef.current) return;
 
+    let isCancelled = false;
+
     const initHands = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
+        // First, request camera access directly using getUserMedia
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { width: 640, height: 480 } 
+        });
+        
+        if (isCancelled) {
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
+
+        // Attach stream to video element
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+
         // Dynamic import for MediaPipe
         const { Hands } = await import('@mediapipe/hands');
-        const { Camera } = await import('@mediapipe/camera_utils');
+
+        if (isCancelled) {
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
 
         const hands = new Hands({
           locateFile: (file) => {
@@ -160,26 +182,31 @@ export const useHandDetection = (
         hands.onResults(onResults);
         handsRef.current = hands;
 
-        // Setup camera
-        if (videoRef.current) {
-          const camera = new Camera(videoRef.current, {
-            onFrame: async () => {
-              if (handsRef.current && videoRef.current) {
-                await handsRef.current.send({ image: videoRef.current });
-              }
-            },
-            width: 640,
-            height: 480,
-          });
+        // Use requestAnimationFrame loop instead of MediaPipe Camera
+        const processFrame = async () => {
+          if (isCancelled || !handsRef.current || !videoRef.current) return;
           
-          await camera.start();
-          cameraRef.current = camera;
-        }
+          if (videoRef.current.readyState >= 2) {
+            await handsRef.current.send({ image: videoRef.current });
+          }
+          
+          animationFrameRef.current = requestAnimationFrame(processFrame);
+        };
 
+        processFrame();
         setIsLoading(false);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error initializing hand detection:', err);
-        setError('Failed to initialize hand detection. Please allow camera access.');
+        
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          setError('Camera access denied. Please allow camera in browser settings.');
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          setError('No camera found. Please connect a camera.');
+        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+          setError('Camera is in use by another app. Please close it and try again.');
+        } else {
+          setError('Failed to initialize camera. Please refresh and try again.');
+        }
         setIsLoading(false);
       }
     };
@@ -187,6 +214,12 @@ export const useHandDetection = (
     initHands();
 
     return () => {
+      isCancelled = true;
+      if (videoRef.current?.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null;
+      }
       if (cameraRef.current) {
         cameraRef.current.stop();
       }
