@@ -196,7 +196,7 @@ export const useHandDetection = (
         processFrame();
         setIsLoading(false);
       } catch (err: any) {
-        console.error('Error initializing hand detection:', err);
+        console.error('Error initializing hand detection:', err, err?.name, err?.message);
         
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
           setError('Camera access denied. Please allow camera in browser settings.');
@@ -204,8 +204,12 @@ export const useHandDetection = (
           setError('No camera found. Please connect a camera.');
         } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
           setError('Camera is in use by another app. Please close it and try again.');
+        } else if (err.name === 'OverconstrainedError') {
+          setError('Camera does not support required resolution. Trying again...');
+        } else if (err.message?.includes('getUserMedia')) {
+          setError('Camera not available. Make sure you are using HTTPS.');
         } else {
-          setError('Failed to initialize camera. Please refresh and try again.');
+          setError(`Camera error: ${err.message || 'Unknown error'}. Try refreshing.`);
         }
         setIsLoading(false);
       }
