@@ -155,7 +155,12 @@ export const useHandDetection = (
         // Attach stream to video element
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          await videoRef.current.play();
+          const playPromise = videoRef.current.play();
+          if (playPromise !== undefined) {
+            playPromise.catch((playErr) => {
+              console.warn('Video play was interrupted or blocked:', playErr);
+            });
+          }
         }
 
         // Dynamic import for MediaPipe
