@@ -189,10 +189,36 @@ export const useHandDetection = (
 
         // Use requestAnimationFrame loop instead of MediaPipe Camera
         const processFrame = async () => {
-          if (isCancelled || !handsRef.current || !videoRef.current) return;
+          if (isCancelled || !videoRef.current || !canvasRef.current) return;
+          
+          const canvas = canvasRef.current;
+          const ctx = canvas.getContext('2d');
           
           if (videoRef.current.readyState >= 2) {
-            await handsRef.current.send({ image: videoRef.current });
+            // Always draw the video frame to canvas first (as fallback/base)
+            if (ctx && !handsRef.current) {
+              ctx.save();
+              ctx.scale(-1, 1);
+              ctx.translate(-canvas.width, 0);
+              ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+              ctx.restore();
+            }
+            
+            // Send to MediaPipe for hand detection
+            if (handsRef.current) {
+              try {
+                await handsRef.current.send({ image: videoRef.current });
+              } catch (e) {
+                // If MediaPipe fails, draw video directly
+                if (ctx) {
+                  ctx.save();
+                  ctx.scale(-1, 1);
+                  ctx.translate(-canvas.width, 0);
+                  ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+                  ctx.restore();
+                }
+              }
+            }
           }
           
           animationFrameRef.current = requestAnimationFrame(processFrame);
