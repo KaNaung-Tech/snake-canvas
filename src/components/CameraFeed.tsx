@@ -3,6 +3,7 @@ import { useHandDetection } from '@/hooks/useHandDetection';
 import { Direction } from '@/hooks/useSnakeGame';
 import { cn } from '@/lib/utils';
 import { Loader2, Camera, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface Point {
   x: number;
@@ -28,12 +29,24 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
   
   const [drawingPoints, setDrawingPoints] = useState<Point[]>([]);
   const [lastDirection, setLastDirection] = useState<Direction | null>(null);
+  const [cameraPermission, setCameraPermission] = useState<'prompt' | 'granted' | 'denied'>('prompt');
   const wasPinchingRef = useRef(false);
+
+  const handleRequestPermission = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach(track => track.stop());
+      setCameraPermission('granted');
+    } catch (err) {
+      console.error('Camera permission denied:', err);
+      setCameraPermission('denied');
+    }
+  };
 
   const { isPinching, pinchPosition, isLoading, error } = useHandDetection(
     videoRef,
     canvasRef,
-    enabled
+    enabled && cameraPermission === 'granted'
   );
 
   // Calculate direction from drawn line
@@ -188,8 +201,45 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({
         </div>
       )}
 
+      {/* Camera permission request overlay */}
+      {cameraPermission === 'prompt' && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm">
+          <div className="text-center space-y-4 p-6">
+            <Camera className="w-14 h-14 text-primary mx-auto" />
+            <div className="space-y-2">
+              <p className="text-foreground font-display text-lg font-bold">
+                Camera Access Required
+              </p>
+              <p className="text-muted-foreground font-body text-sm">
+                Allow camera access to control the snake with hand gestures
+              </p>
+            </div>
+            <Button
+              onClick={handleRequestPermission}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-display"
+            >
+              <Camera className="w-4 h-4 mr-2" />
+              Allow Camera
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Camera permission denied overlay */}
+      {cameraPermission === 'denied' && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm">
+          <div className="text-center space-y-3 p-6">
+            <AlertCircle className="w-12 h-12 text-destructive mx-auto" />
+            <p className="text-destructive font-body text-lg">Camera access denied</p>
+            <p className="text-muted-foreground font-body text-sm">
+              Please enable camera in browser settings
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Not enabled overlay */}
-      {!enabled && !isLoading && !error && (
+      {cameraPermission === 'granted' && !enabled && !isLoading && !error && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm">
           <div className="text-center space-y-3">
             <Camera className="w-12 h-12 text-muted-foreground mx-auto opacity-50" />
